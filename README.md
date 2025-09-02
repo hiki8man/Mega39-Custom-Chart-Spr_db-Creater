@@ -1,4 +1,4 @@
-add custom chart spr_db info without edit db file by yourself
+add custom chart spr_db info without edit db file
 
 孩子做着玩的产物，用来给自制谱快速添加spr_db
 
