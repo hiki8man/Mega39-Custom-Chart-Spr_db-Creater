@@ -19,6 +19,7 @@ def get_hash(string):
 
 class farc_format:
     AFT = b"FArC"
+    AFT_RAW = b"FArc"
     Gzip = b"\x00\x00\x00\x10"
 
 class Manager:
@@ -364,27 +365,37 @@ class read_farc:
 
     def __init__(self, file_path):
         with open(file_path,"rb") as f:
-            self.check_format(f)
+            format = self.check_format(f)
             f.seek(4)
             lenght = int.from_bytes(f.read(4),byteorder="big")
             f.seek(12)
-            file_info = self.get_file_list(f, lenght)
-            f.seek(lenght,1)
-            file_info["SizeComp"] = self.fix_file_size(f, int.from_bytes(f.read(4),byteorder="big"), file_info["start_point"])
-            file_info["Size"] = int.from_bytes(f.read(4),byteorder="big")
-            file_info["data"] = self.unpack_farc(file_info, f)
+            if format == farc_format.AFT:
+                file_info = self.get_file_list(f, lenght)
+                file_info["SizeComp"] = self.fix_file_size(f, int.from_bytes(f.read(4),byteorder="big"), file_info["start_point"])
+                file_info["Size"] = int.from_bytes(f.read(4),byteorder="big")
+                file_info["data"] = self.unpack_farc(file_info, f)
+            elif format == farc_format.AFT_RAW:
+                file_info = self.get_file_list(f, lenght)
+                file_info["Size"] = int.from_bytes(f.read(4),byteorder="big")
+                f.seek(file_info["start_point"])
+                file_info["data"] = f.read(file_info["Size"])
+            else:
+                raise TypeError("unsupport format")
         self.data = file_info["data"]
         self.name = file_info["name"]
 
     def check_format(self, farc_file):
-        if farc_file.read(4) != farc_format.AFT:
+        format = farc_file.read(4)
+        if format in (farc_format.AFT,farc_format.AFT_RAW):
+            return format
+        else:
             raise NotImplementedError("Only Support AFT Format")
     
     def get_file_list(self, _info_data, lenght):
         _info_data.seek(12)
         start_point = 12
         file_list = []
-        while start_point != lenght:
+        while start_point < lenght:
             file_name, start_point = self.get_file_info(_info_data, start_point)
             _info_data.seek(start_point)
             file_start_point = int.from_bytes(_info_data.read(4),byteorder="big")
